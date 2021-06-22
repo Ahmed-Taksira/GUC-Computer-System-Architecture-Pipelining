@@ -1,19 +1,18 @@
 import java.io.File;
 import java.io.IOException;
-import java.util.Scanner;
+import java.util.*;
 
 public class Architecture {
 
     RegisterFile registerFile;
     int pcRegister;
     MainMemory mainMemory;
-    int clockCycle;
+    static int instructionCounter=1;
 
-    public Architecture(){
+    public Architecture(String filename) throws Exception {
         registerFile = new RegisterFile();
         pcRegister = 0;
-        mainMemory = new MainMemory();
-        clockCycle = 1;
+        mainMemory = new MainMemory(filename);
     }
 
     public int fetch() {
@@ -50,7 +49,7 @@ public class Architecture {
             default -> null;
         };
 
-        return new Instruction(opcode,r1,r2,r3,shamt,immediate,address,valueR1,valueR2,valueR3,type);
+        return new Instruction(instructionCounter++, opcode,r1,r2,r3,shamt,immediate,address,valueR1,valueR2,valueR3,type);
 
     }
 
@@ -76,14 +75,15 @@ public class Architecture {
                 case 5: instruction.valueR1 = instruction.valueR2 & instruction.immediate; break;
                 case 6: instruction.valueR1 = instruction.valueR2 | instruction.immediate; break;
                 case 10:
-                //check if value or register index
-                case 11: instruction.r1 = instruction.r2 + instruction.immediate - 1024; break;
+                case 11: instruction.r1 = instruction.valueR2 + instruction.immediate - 1024; break;
                 default: break;
             }
         }
         else {
             pcRegister = pcRegister & 0b11110000000000000000000000000000;
             pcRegister = pcRegister | instruction.address;
+            System.out.println("ADDRESS  " + instruction.address);
+            System.out.println("PPPCCCCC   " + pcRegister);
         }
 
     }
@@ -102,113 +102,101 @@ public class Architecture {
             registerFile.registers.get(instruction.r1).value = instruction.valueR1;
     }
 
-    public void parser(String fileName) throws Exception {
-        File file = new File(fileName);
-        Scanner reader = new Scanner(file);
-        while (reader.hasNextLine()) {
-            String[] line = reader.nextLine().split(" ");
-            int opcode;
-            int r1;
-            int r2;
-            int r3;
-            int immediate;
-            int shamt;
-            int address;
-            switch(line[0]){
-                case "ADD":
-                    opcode = 0;
-                    r1 = Integer.parseInt(line[1].substring(1)) << 23;
-                    r2 = Integer.parseInt(line[2].substring(1)) << 18;
-                    r3 = Integer.parseInt(line[3].substring(1)) << 13;
-                    mainMemory.instructionMemory.add(opcode | r1 | r2 | r3);
-                    break;
-                case "SUB":
-                    opcode = 1 << 28;
-                    r1 = Integer.parseInt(line[1].substring(1)) << 23;
-                    r2 = Integer.parseInt(line[2].substring(1)) << 18;
-                    r3 = Integer.parseInt(line[3].substring(1)) << 13;
-                    mainMemory.instructionMemory.add(opcode | r1 | r2 | r3);
-                    break;
-                case "MULI":
-                    opcode = 2 << 28;
-                    r1 = Integer.parseInt(line[1].substring(1)) << 23;
-                    r2 = Integer.parseInt(line[2].substring(1)) << 18;
-                    immediate = Integer.parseInt(line[3]);
-                    mainMemory.instructionMemory.add(opcode | r1 | r2 | immediate);
-                    break;
-                case "ADDI":
-                    opcode = 3 << 28;
-                    r1 = Integer.parseInt(line[1].substring(1)) << 23;
-                    r2 = Integer.parseInt(line[2].substring(1)) << 18;
-                    immediate = Integer.parseInt(line[3]);
-                    mainMemory.instructionMemory.add(opcode | r1 | r2 | immediate);
-                    break;
-                case "BNE":
-                    opcode = 4 << 28;
-                    r1 = Integer.parseInt(line[1].substring(1)) << 23;
-                    r2 = Integer.parseInt(line[2].substring(1)) << 18;
-                    immediate = Integer.parseInt(line[3]);
-                    mainMemory.instructionMemory.add(opcode | r1 | r2 | immediate);
-                    break;
-                case "ANDI":
-                    opcode = 5 << 28;
-                    r1 = Integer.parseInt(line[1].substring(1)) << 23;
-                    r2 = Integer.parseInt(line[2].substring(1)) << 18;
-                    immediate = Integer.parseInt(line[3]);
-                    mainMemory.instructionMemory.add(opcode | r1 | r2 | immediate);
-                    break;
-                case "ORI":
-                    opcode = 6 << 28;
-                    r1 = Integer.parseInt(line[1].substring(1)) << 23;
-                    r2 = Integer.parseInt(line[2].substring(1)) << 18;
-                    immediate = Integer.parseInt(line[3]);
-                    mainMemory.instructionMemory.add(opcode | r1 | r2 | immediate);
-                    break;
-                case "J":
-                    opcode = 7 << 28;
-                    address = Integer.parseInt(line[1]);
-                    mainMemory.instructionMemory.add(opcode | address);
-                    break;
-                case "SLL":
-                    opcode = 8 << 28;
-                    r1 = Integer.parseInt(line[1].substring(1)) << 23;
-                    r2 = Integer.parseInt(line[2].substring(1)) << 18;
-                    shamt = Integer.parseInt(line[3]);
-                    mainMemory.instructionMemory.add(opcode | r1 | r2 | shamt);
-                    break;
-                case "SRL":
-                    opcode = 9 << 28;
-                    r1 = Integer.parseInt(line[1].substring(1)) << 23;
-                    r2 = Integer.parseInt(line[2].substring(1)) << 18;
-                    shamt = Integer.parseInt(line[3]);
-                    mainMemory.instructionMemory.add(opcode | r1 | r2 | shamt);
-                    break;
-                case "LW":
-                    opcode = 10 << 28;
-                    r1 = Integer.parseInt(line[1].substring(1)) << 23;
-                    r2 = Integer.parseInt(line[2].substring(1)) << 18;
-                    immediate = Integer.parseInt(line[3]);
-                    mainMemory.instructionMemory.add(opcode | r1 | r2 | immediate);
-                    break;
-                case "SW":
-                    opcode = 11 << 28;
-                    //System.out.println(opcode);
-                    r1 = Integer.parseInt(line[1].substring(1)) << 23;
-                    r2 = Integer.parseInt(line[2].substring(1)) << 18;
-                    immediate = Integer.parseInt(line[3]);
-                    mainMemory.instructionMemory.add(opcode | r1 | r2 | immediate);
-                    //System.out.println(opcode | r1 | r2 | immediate);
-                    break;
-                default: throw new Exception("Incorrect command!");
+    public void pipeline(){
+        int n = mainMemory.numberOfInstructions;
+        int x=n;
+        int clk;
+        int maxpipe=0;
+
+        int decodearrival=0;
+        int executearrival=0;
+        int memoryarrival=0;
+        int writebackarrival=0;
+        int finisharrival=0;
+
+        Integer fetching=null;
+        Instruction decoding=null;
+        Instruction executing=null;
+        Instruction memorying=null;
+        Instruction writingbacking=null;
+
+        for(clk=1 ; clk<= (7+ ((n-1)*2)); clk++){
+
+            System.out.println("Clock Cycle = "+ clk);
+
+            if(clk==finisharrival){
+                maxpipe--;
+                writingbacking=null;
             }
+
+            if(clk==writebackarrival){
+                writeBack(memorying);
+                writingbacking=memorying;
+                memorying=null;
+                finisharrival=clk+1;
+            }
+
+            if(clk==memoryarrival){
+                memory(executing);
+                memorying=executing;
+                executing=null;
+                writebackarrival=clk+1;
+            }
+
+            if(clk==executearrival+1 && executing!=null){
+                if(executing.opcode==4 || executing.opcode==7){
+                    if(executing.id<pcRegister-1){
+                        n-=pcRegister-executing.id-2;
+                        x=2;
+                    }
+                    else{
+                        n+=pcRegister-executing.id-1;
+                        x+=pcRegister-executing.id-1;
+                    }
+                    System.out.println("jgjgjygflglu"+decoding.id);
+                    //HEEENNNAAAAAAAAAA
+                    decoding=null;
+                    fetching=null;
+                    decodearrival=0;
+                }
+            }
+
+            if(clk==executearrival){
+                execute(decoding);
+                executing=decoding;
+                decoding=null;
+                memoryarrival=clk+2;
+            }
+
+            if(clk==decodearrival){
+                decoding=decode(fetching);
+                fetching=null;
+                executearrival=clk+2;
+            }
+
+            if(clk%2!=0 && x-->0 && maxpipe<=4){
+                fetching=fetch();
+                maxpipe++;
+                decodearrival=clk+1;
+            }
+            System.out.println("PC  "+pcRegister);
+            System.out.println("Fetching = " + ((fetching==null)?"---":fetching));
+            System.out.println("Decoding = " + ((decoding==null)?"---":decoding));
+            System.out.println("Executing = " + ((executing==null)?"---":executing));
+            System.out.println("Memory = " + ((memorying==null)?"---":memorying));
+            System.out.println("Write Back = " + ((writingbacking==null)?"---":writingbacking));
+            System.out.println("-------------------------------------------------------");
         }
+
     }
 
     public static void main(String[] args) throws Exception {
-        Architecture architecture = new Architecture();
-        architecture.parser("src/assemble.txt");
+        Architecture architecture = new Architecture("assemble.txt");
+        System.out.println("MEM SIZE" +architecture.mainMemory.instructionMemory.size());
+        architecture.pipeline();
+        // printing wel error
 
-        for (int i = 0; i < 6; i++){
+        /*for (int i = 0; i < 6; i++){
             int instructionValue = architecture.fetch();
             Instruction instruction = architecture.decode(instructionValue);
             architecture.execute(instruction);
@@ -220,7 +208,7 @@ public class Architecture {
             System.out.println(architecture.registerFile.registers.get(i).value);
         System.out.println("--------------------");
         for (int i = 0; i< 10; i++)
-            System.out.println(architecture.mainMemory.dataMemory.get(i));
+            System.out.println(architecture.mainMemory.dataMemory.get(i));*/
     }
 
 }
