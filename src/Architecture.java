@@ -41,7 +41,6 @@ public class Architecture {
         int valueR2 = registerFile.registers.get(r2).value;
         int valueR3 = registerFile.registers.get(r3).value;
 
-        //System.out.println(opcode);
         Character type = switch (opcode) {
             case 0, 1, 9, 8 -> 'R';
             case 2, 3, 4, 5, 6, 10, 11 -> 'I';
@@ -49,7 +48,7 @@ public class Architecture {
             default -> null;
         };
 
-        return new Instruction(instructionCounter++, opcode,r1,r2,r3,shamt,immediate,address,valueR1,valueR2,valueR3,type);
+        return new Instruction(pcRegister, opcode,r1,r2,r3,shamt,immediate,address,valueR1,valueR2,valueR3,type);
 
     }
 
@@ -69,8 +68,10 @@ public class Architecture {
                 case 2: instruction.valueR1 = instruction.valueR2 * instruction.immediate; break;
                 case 3: instruction.valueR1 = instruction.valueR2 + instruction.immediate; break;
                 case 4:
-                    if(instruction.valueR1 != instruction.valueR2)
+                    if(instruction.valueR1 != instruction.valueR2) {
+                        pcRegister--;
                         pcRegister += 1 + instruction.immediate;
+                    }
                     break;
                 case 5: instruction.valueR1 = instruction.valueR2 & instruction.immediate; break;
                 case 6: instruction.valueR1 = instruction.valueR2 | instruction.immediate; break;
@@ -82,8 +83,6 @@ public class Architecture {
         else {
             pcRegister = pcRegister & 0b11110000000000000000000000000000;
             pcRegister = pcRegister | instruction.address;
-            System.out.println("ADDRESS  " + instruction.address);
-            System.out.println("PPPCCCCC   " + pcRegister);
         }
 
     }
@@ -104,7 +103,7 @@ public class Architecture {
 
     public void pipeline(){
         int n = mainMemory.numberOfInstructions;
-        int x=n;
+        int x=0;
         int clk;
         int maxpipe=0;
 
@@ -113,6 +112,9 @@ public class Architecture {
         int memoryarrival=0;
         int writebackarrival=0;
         int finisharrival=0;
+        int skippingexecute=0;
+        int decodearrivalplusone=0;
+        int tempdecoding=0;
 
         Integer fetching=null;
         Instruction decoding=null;
@@ -120,7 +122,9 @@ public class Architecture {
         Instruction memorying=null;
         Instruction writingbacking=null;
 
-        for(clk=1 ; clk<= (7+ ((n-1)*2)); clk++){
+        int maxclocks=0;
+
+        for(clk=1 ; clk<=(7+ ((n-1)*2))+maxclocks ; clk++){
 
             System.out.println("Clock Cycle = "+ clk);
 
@@ -143,72 +147,83 @@ public class Architecture {
                 writebackarrival=clk+1;
             }
 
-            if(clk==executearrival+1 && executing!=null){
-                if(executing.opcode==4 || executing.opcode==7){
-                    if(executing.id<pcRegister-1){
-                        n-=pcRegister-executing.id-2;
-                        x=2;
-                    }
-                    else{
-                        n+=pcRegister-executing.id-1;
-                        x+=pcRegister-executing.id-1;
-                    }
-                    System.out.println("jgjgjygflglu"+decoding.id);
-                    //HEEENNNAAAAAAAAAA
-                    decoding=null;
-                    fetching=null;
-                    decodearrival=0;
-                }
-            }
-
             if(clk==executearrival){
-                execute(decoding);
+
+                if(decoding.opcode!=4 && decoding.opcode!=7)
+                    execute(decoding);
+                //execute(decoding);
+
                 executing=decoding;
                 decoding=null;
+                if(executing.opcode==4 || executing.opcode==7)
+                    skippingexecute=clk+1;
                 memoryarrival=clk+2;
             }
 
+            if(clk==decodearrivalplusone){
+                decoding=decode(tempdecoding);
+                tempdecoding=0;
+            }
+
             if(clk==decodearrival){
-                decoding=decode(fetching);
+                tempdecoding=fetching;
+                decoding=decode(tempdecoding);
                 fetching=null;
                 executearrival=clk+2;
             }
 
-            if(clk%2!=0 && x-->0 && maxpipe<=4){
+            if(clk%2!=0 && pcRegister<mainMemory.instructionMemory.size() && maxpipe<=4){
                 fetching=fetch();
                 maxpipe++;
                 decodearrival=clk+1;
+                decodearrivalplusone=decodearrival+1;
             }
-            System.out.println("PC  "+pcRegister);
+
+            System.out.println("PC  "+(pcRegister+1));
             System.out.println("Fetching = " + ((fetching==null)?"---":fetching));
-            System.out.println("Decoding = " + ((decoding==null)?"---":decoding));
+            System.out.println("Decoding = " + ((decoding==null )?"---":decoding));
             System.out.println("Executing = " + ((executing==null)?"---":executing));
             System.out.println("Memory = " + ((memorying==null)?"---":memorying));
             System.out.println("Write Back = " + ((writingbacking==null)?"---":writingbacking));
             System.out.println("-------------------------------------------------------");
+
+            if(clk==skippingexecute && executing!=null){
+
+                if(executing.opcode==4 || executing.opcode==7){
+                    int tempPc;
+                    if(executing.opcode==4)
+                        tempPc=pcRegister;
+                    else
+                         tempPc= pcRegister-2;
+
+                    execute(executing);
+                    System.out.println("IIIIIIDDDDD " +executing.id + "****PPPCCC   " +pcRegister);
+                    if(executing.id<pcRegister-1)
+                        x=n-pcRegister+1;
+                    else
+                        n+=pcRegister-executing.id-1;
+                    if(tempPc!=pcRegister){
+                    decoding=null;
+                    fetching=null;
+                    skippingexecute=0;
+                    decodearrival=0;
+                    executearrival=0;
+                    decodearrivalplusone=0;
+                    maxpipe-=2;
+                    maxclocks=(7+ ((x-1)*2))-6;
+                    if(executing.opcode==4)
+                        pcRegister-=2;
+                    }
+                }
+            }
         }
 
     }
 
     public static void main(String[] args) throws Exception {
         Architecture architecture = new Architecture("assemble.txt");
-        System.out.println("MEM SIZE" +architecture.mainMemory.instructionMemory.size());
         architecture.pipeline();
-        // printing wel error
-
-        /*for (int i = 0; i < 6; i++){
-            int instructionValue = architecture.fetch();
-            Instruction instruction = architecture.decode(instructionValue);
-            architecture.execute(instruction);
-            architecture.memory(instruction);
-            architecture.writeBack(instruction);
-
-        }
-        for (int i = 0; i < 5; i++)
-            System.out.println(architecture.registerFile.registers.get(i).value);
-        System.out.println("--------------------");
-        for (int i = 0; i< 10; i++)
-            System.out.println(architecture.mainMemory.dataMemory.get(i));*/
+        //Printings
     }
 
 }
