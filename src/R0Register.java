@@ -1,6 +1,6 @@
 public class R0Register extends Register{
 
-    protected int value;
+    final int value;
 
     public R0Register() {
         super(0);

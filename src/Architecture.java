@@ -1,7 +1,3 @@
-import java.io.File;
-import java.io.IOException;
-import java.util.*;
-
 public class Architecture {
 
     RegisterFile registerFile;
@@ -55,13 +51,14 @@ public class Architecture {
     public void execute(Instruction instruction){
 
         if(instruction.type.equals('R')){
-          switch (instruction.opcode){
-              case 0: instruction.valueR1 = instruction.valueR2 + instruction.valueR3; break;
-              case 1: instruction.valueR1 = instruction.valueR2 - instruction.valueR3; break;
-              case 8: instruction.valueR1 = instruction.valueR2 << instruction.shamt; break;
-              case 9: instruction.valueR1 = instruction.valueR2 >> instruction.shamt; break;
-              default: break;
-          }
+            switch (instruction.opcode){
+                case 0: instruction.valueR1 = instruction.valueR2 + instruction.valueR3; break;
+                case 1: instruction.valueR1 = instruction.valueR2 - instruction.valueR3; break;
+                case 8: instruction.valueR1 = instruction.valueR2 << instruction.shamt; break;
+                case 9: instruction.valueR1 = instruction.valueR2 >> instruction.shamt; break;
+                default: break;
+            }
+            System.out.println("Input 1 Register R " + instruction.r1 + " " + "Input 2 Register R " + instruction.r2 + " " + "Input 3 Register R " + instruction.r3);
         }
         else if(instruction.type.equals('I')){
             switch (instruction.opcode){
@@ -75,13 +72,15 @@ public class Architecture {
                 case 5: instruction.valueR1 = instruction.valueR2 & instruction.immediate; break;
                 case 6: instruction.valueR1 = instruction.valueR2 | instruction.immediate; break;
                 case 10:
-                case 11: instruction.r1 = instruction.valueR2 + instruction.immediate - 1024; break;
+                case 11: instruction.r1 = instruction.valueR2 + instruction.immediate - 1024;  break;
                 default: break;
             }
+            System.out.println("Input 1 Register R " + instruction.r1 + " " + "Input 2 Register R " + instruction.r2 + " " + "Input immediate " + instruction.immediate);
         }
         else {
             pcRegister = pcRegister & 0b11110000000000000000000000000000;
             pcRegister = pcRegister | instruction.address;
+            System.out.println("Input Address " + instruction.address);
         }
 
     }
@@ -92,18 +91,22 @@ public class Architecture {
         }
         else if(instruction.opcode == 11){
             mainMemory.dataMemory.set(instruction.r1, instruction.valueR1);
+            System.out.println("Data Memory Block " + instruction.r1 + ": " + mainMemory.dataMemory.get(instruction.r1));
         }
     }
 
     public void writeBack(Instruction instruction){
-        if(instruction.opcode != 4 && instruction.opcode != 7 && instruction.opcode != 11)
+        if(instruction.opcode != 4 && instruction.opcode != 7 && instruction.opcode != 11){
             registerFile.registers.get(instruction.r1).value = instruction.valueR1;
+            System.out.println("Register " + instruction.r1 + ": " + instruction.valueR1);
+        }
     }
 
     public void pipeline(){
         int n = mainMemory.numberOfInstructions;
         int clk;
         int maxpipe=0;
+
         int decodearrival=0;
         int executearrival=0;
         int memoryarrival=0;
@@ -135,7 +138,6 @@ public class Architecture {
                 maxpipe--;
                 writingbacking=null;
             }
-
             // Writing_Back Stage
             if(clk==writebackarrival){
                 writeBack(memorying);
@@ -143,7 +145,6 @@ public class Architecture {
                 memorying=null;
                 finisharrival=clk+1;
             }
-
             // Memory Stage
             if(clk==memoryarrival){
                 memory(executing);
@@ -204,11 +205,10 @@ public class Architecture {
                 decodearrival=clk+1;
 
             }
-            
             // To end of we finished the instructions :)
             if (fetching==null&&decoding==null&&executing==null&&memorying==null&&writingbacking==null){
-                    n=clk;
-                    break;
+                n=clk;
+                break;
             }
 
             // printing :)
@@ -220,12 +220,12 @@ public class Architecture {
             System.out.println("Write Back = " + ((writingbacking==null)?"---":writingbacking));
             System.out.println("-------------------------------------------------------");
 
-            // to null the instructions we dropping
+            // to null the instructions we are dropping
             if(weJumping && executing!=null){
-                    weJumping=false;
+                weJumping=false;
                 if(jumpingPC>pcRegister)
-                        n = n + n;
-                    if(oldPC!=pcRegister-1 && oldPC!=pcRegister){
+                    n = n + n;
+                if(oldPC!=pcRegister-1 && oldPC!=pcRegister){
                     decoding=null;
                     fetching=null;
                     decodearrival=0;
@@ -236,21 +236,31 @@ public class Architecture {
                     jumpingPC=0;
                     oldPC=0;
                     pcRegister--;
-                    }
-                     if(dropOne){
-                        decoding=null;
-                        decodearrivalplusone=0;
-                        executearrival=0;
-                        executearrivalplusone=0;
-                        maxpipe-=1;
-                        jumpingPC=0;
-                        oldPC=0;
-                        dropOne= false;
-                    }
+                }
+                if(dropOne){
+                    decoding=null;
+                    decodearrivalplusone=0;
+                    executearrival=0;
+                    executearrivalplusone=0;
+                    maxpipe-=1;
+                    jumpingPC=0;
+                    oldPC=0;
+                    dropOne= false;
+                }
             }//end of nulling
 
         }//end of looping
 
+        for(int i = 0; i < registerFile.registers.size(); i++){
+            System.out.println("Register: " + registerFile.registers.get(i).name + "  " + " Value: " + registerFile.registers.get(i).value);
+        }
+
+        for(int i = 0; i < mainMemory.dataMemory.size(); i++){
+            System.out.println("Data Memory Block " + i + ": " + mainMemory.dataMemory.get(i));
+        }
+        for(int i = 0; i < mainMemory.instructionMemory.size(); i++){
+            System.out.println("Instruction Memory Block " + i + ": " + mainMemory.instructionMemory.get(i));
+        }
     }// end of method
 
     public static void main(String[] args) throws Exception {
