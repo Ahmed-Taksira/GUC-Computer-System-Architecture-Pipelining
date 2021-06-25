@@ -30,9 +30,6 @@ public class Instruction {
 
     @Override
     public String toString() {
-//        return "Instruction : "+id ;
-
-        return this.opcode+"";
-
+        return "Instruction : "+id ;
     }
 }

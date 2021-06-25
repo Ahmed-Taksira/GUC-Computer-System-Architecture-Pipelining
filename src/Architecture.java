@@ -58,7 +58,7 @@ public class Architecture {
                 case 9: instruction.valueR1 = instruction.valueR2 >> instruction.shamt; break;
                 default: break;
             }
-            System.out.println("Input 1 Register R " + instruction.r1 + " " + "Input 2 Register R " + instruction.r2 + " " + "Input 3 Register R " + instruction.r3);
+            System.out.println("Input 1 : Register R" + instruction.r1 + " --- " + "Input 2 : Register R" + instruction.r2 + " --- " + "Input 3 : Register R" + instruction.r3);
         }
         else if(instruction.type.equals('I')){
             switch (instruction.opcode){
@@ -75,13 +75,15 @@ public class Architecture {
                 case 11: instruction.r1 = instruction.valueR2 + instruction.immediate - 1024;  break;
                 default: break;
             }
-            System.out.println("Input 1 Register R " + instruction.r1 + " " + "Input 2 Register R " + instruction.r2 + " " + "Input immediate " + instruction.immediate);
+            System.out.println("Input 1 : Register R" + instruction.r1 + " --- " + "Input 2 : Register R" + instruction.r2 + " --- " + "Input immediate : " + instruction.immediate);
         }
         else {
             pcRegister = pcRegister & 0b11110000000000000000000000000000;
             pcRegister = pcRegister | instruction.address;
             System.out.println("Input Address " + instruction.address);
         }
+        if(instruction.r1==0)
+            instruction.valueR1=0;
 
     }
 
@@ -98,7 +100,7 @@ public class Architecture {
     public void writeBack(Instruction instruction){
         if(instruction.opcode != 4 && instruction.opcode != 7 && instruction.opcode != 11){
             registerFile.registers.get(instruction.r1).value = instruction.valueR1;
-            System.out.println("Register " + instruction.r1 + ": " + instruction.valueR1);
+            System.out.println("Register " + instruction.r1 + ": " + registerFile.registers.get(instruction.r1).value);
         }
     }
 
