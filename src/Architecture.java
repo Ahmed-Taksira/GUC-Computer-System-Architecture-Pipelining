@@ -69,8 +69,7 @@ public class Architecture {
                 case 3: instruction.valueR1 = instruction.valueR2 + instruction.immediate; break;
                 case 4:
                     if(instruction.valueR1 != instruction.valueR2) {
-                        pcRegister--;
-                        pcRegister += 1 + instruction.immediate;
+                        pcRegister = instruction.id-1+ 1 +instruction.immediate;
                     }
                     break;
                 case 5: instruction.valueR1 = instruction.valueR2 & instruction.immediate; break;
@@ -103,36 +102,41 @@ public class Architecture {
 
     public void pipeline(){
         int n = mainMemory.numberOfInstructions;
-        int x=0;
         int clk;
         int maxpipe=0;
-
         int decodearrival=0;
         int executearrival=0;
         int memoryarrival=0;
         int writebackarrival=0;
         int finisharrival=0;
-        int skippingexecute=0;
         int decodearrivalplusone=0;
+        int executearrivalplusone=0;
         int tempdecoding=0;
+        int jumpingPC = 0;
+        int oldPC = 0;
+        boolean weJumping = false;
+        boolean dropOne = false;
 
+        // pointers
         Integer fetching=null;
         Instruction decoding=null;
         Instruction executing=null;
         Instruction memorying=null;
         Instruction writingbacking=null;
 
-        int maxclocks=0;
 
-        for(clk=1 ; clk<=(7+ ((n-1)*2))+maxclocks ; clk++){
+
+        for(clk=1 ; clk<=(7+ ((n-1)*2)); clk++){
 
             System.out.println("Clock Cycle = "+ clk);
 
+            // Finishing the instruction
             if(clk==finisharrival){
                 maxpipe--;
                 writingbacking=null;
             }
 
+            // Writing_Back Stage
             if(clk==writebackarrival){
                 writeBack(memorying);
                 writingbacking=memorying;
@@ -140,6 +144,7 @@ public class Architecture {
                 finisharrival=clk+1;
             }
 
+            // Memory Stage
             if(clk==memoryarrival){
                 memory(executing);
                 memorying=executing;
@@ -147,39 +152,67 @@ public class Architecture {
                 writebackarrival=clk+1;
             }
 
-            if(clk==executearrival){
+            // Executing in second clk
+            if (clk==executearrivalplusone){
 
-                if(decoding.opcode!=4 && decoding.opcode!=7)
-                    execute(decoding);
-                //execute(decoding);
+                if(executing.opcode==4 || executing.opcode==7){
+                    weJumping = true;
+                    oldPC=pcRegister;
+                }
+                execute(executing);
 
-                executing=decoding;
-                decoding=null;
-                if(executing.opcode==4 || executing.opcode==7)
-                    skippingexecute=clk+1;
-                memoryarrival=clk+2;
+                if (oldPC == pcRegister && executing.opcode==7)
+                    dropOne = true;
+                if (oldPC == pcRegister && executing.opcode==4){
+                    if (executing.valueR1 != executing.valueR2)
+                        dropOne= true;
+                }
+                if (oldPC==pcRegister+1 && weJumping)
+                    pcRegister=oldPC;
+
             }
 
+            // First executing clk
+            if(clk==executearrival){
+                executing=decoding;
+                decoding=null;
+                memoryarrival=clk+2;
+                executearrivalplusone= executearrival+1;
+            }
+
+            // Second decoding clk
             if(clk==decodearrivalplusone){
                 decoding=decode(tempdecoding);
                 tempdecoding=0;
             }
 
+            // First decoding clk
             if(clk==decodearrival){
                 tempdecoding=fetching;
                 decoding=decode(tempdecoding);
+                if(decoding.opcode==4 || decoding.opcode==7)
+                    jumpingPC = pcRegister-1;
                 fetching=null;
                 executearrival=clk+2;
+                decodearrivalplusone=decodearrival+1;
             }
 
+            // Fetching Stage
             if(clk%2!=0 && pcRegister<mainMemory.instructionMemory.size() && maxpipe<=4){
                 fetching=fetch();
                 maxpipe++;
                 decodearrival=clk+1;
-                decodearrivalplusone=decodearrival+1;
+
+            }
+            
+            // To end of we finished the instructions :)
+            if (fetching==null&&decoding==null&&executing==null&&memorying==null&&writingbacking==null){
+                    n=clk;
+                    break;
             }
 
-            System.out.println("PC  "+(pcRegister+1));
+            // printing :)
+            System.out.println("PC  " + (pcRegister));
             System.out.println("Fetching = " + ((fetching==null)?"---":fetching));
             System.out.println("Decoding = " + ((decoding==null )?"---":decoding));
             System.out.println("Executing = " + ((executing==null)?"---":executing));
@@ -187,38 +220,38 @@ public class Architecture {
             System.out.println("Write Back = " + ((writingbacking==null)?"---":writingbacking));
             System.out.println("-------------------------------------------------------");
 
-            if(clk==skippingexecute && executing!=null){
-
-                if(executing.opcode==4 || executing.opcode==7){
-                    int tempPc;
-                    if(executing.opcode==4)
-                        tempPc=pcRegister;
-                    else
-                         tempPc= pcRegister-2;
-
-                    execute(executing);
-                    System.out.println("IIIIIIDDDDD " +executing.id + "****PPPCCC   " +pcRegister);
-                    if(executing.id<pcRegister-1)
-                        x=n-pcRegister+1;
-                    else
-                        n+=pcRegister-executing.id-1;
-                    if(tempPc!=pcRegister){
+            // to null the instructions we dropping
+            if(weJumping && executing!=null){
+                    weJumping=false;
+                if(jumpingPC>pcRegister)
+                        n = n + n;
+                    if(oldPC!=pcRegister-1 && oldPC!=pcRegister){
                     decoding=null;
                     fetching=null;
-                    skippingexecute=0;
                     decodearrival=0;
-                    executearrival=0;
                     decodearrivalplusone=0;
+                    executearrival=0;
+                    executearrivalplusone=0;
                     maxpipe-=2;
-                    maxclocks=(7+ ((x-1)*2))-6;
-                    if(executing.opcode==4)
-                        pcRegister-=2;
+                    jumpingPC=0;
+                    oldPC=0;
+                    pcRegister--;
                     }
-                }
-            }
-        }
+                     if(dropOne){
+                        decoding=null;
+                        decodearrivalplusone=0;
+                        executearrival=0;
+                        executearrivalplusone=0;
+                        maxpipe-=1;
+                        jumpingPC=0;
+                        oldPC=0;
+                        dropOne= false;
+                    }
+            }//end of nulling
 
-    }
+        }//end of looping
+
+    }// end of method
 
     public static void main(String[] args) throws Exception {
         Architecture architecture = new Architecture("assemble.txt");
