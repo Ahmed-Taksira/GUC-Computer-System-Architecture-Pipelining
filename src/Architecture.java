@@ -272,7 +272,7 @@ public class Architecture {
         }
 
         for(int i = 0; i < mainMemory.dataMemory.size(); i++){
-            System.out.println("Data Memory Block " + i + ": " + mainMemory.dataMemory.get(i));
+            System.out.println("Data Memory Block " + (i+1024) + ": " + mainMemory.dataMemory.get(i));
         }
         for(int i = 0; i < mainMemory.instructionMemory.size(); i++){
             System.out.println("Instruction Memory Block " + i + ": " + mainMemory.instructionMemory.get(i));
