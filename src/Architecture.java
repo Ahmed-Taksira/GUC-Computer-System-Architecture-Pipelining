@@ -44,7 +44,24 @@ public class Architecture {
             default -> null;
         };
 
-        return new Instruction(pcRegister, opcode,r1,r2,r3,shamt,immediate,address,valueR1,valueR2,valueR3,type);
+        String statement = "";
+        switch (opcode){
+            case 0: statement = "Instruction: ADD R" + r1 + " R" + r2 + " R" + r3; break;
+            case 1: statement = "Instruction: SUB R" + r1 + " R" + r2 + " R" + r3; break;
+            case 2: statement = "Instruction: MULI R" + r1 + " R" + r2 + " " + immediate; break;
+            case 3: statement = "Instruction: ADDI R" + r1 + " R" + r2 + " " + immediate; break;
+            case 4: statement = "Instruction: BNE R" + r1 + " R" + r2 + " " + immediate; break;
+            case 5: statement = "Instruction: ANDI R" + r1 + " R" + r2 + " " + immediate; break;
+            case 6: statement = "Instruction: ORI R" + r1 + " R" + r2 + " " + immediate; break;
+            case 7: statement = "Instruction: J " + address; break;
+            case 8: statement = "Instruction: SLL R" + r1 + " R" + r2 + " " + shamt; break;
+            case 9: statement = "Instruction: SRL R" + r1 + " R" + r2 + " " + shamt; break;
+            case 10: statement = "Instruction: LW R" + r1 + " R" + r2 + " " + immediate; break;
+            case 11: statement = "Instruction: SW R" + r1 + " R" + r2 + " " + immediate; break;
+            default: break;
+        }
+
+        return new Instruction(pcRegister, opcode,r1,r2,r3,shamt,immediate,address,valueR1,valueR2,valueR3,type,statement);
 
     }
 
@@ -58,7 +75,6 @@ public class Architecture {
                 case 9: instruction.valueR1 = instruction.valueR2 >> instruction.shamt; break;
                 default: break;
             }
-            System.out.println("Input 1 : Register R" + instruction.r1 + " --- " + "Input 2 : Register R" + instruction.r2 + " --- " + "Input 3 : Register R" + instruction.r3);
         }
         else if(instruction.type.equals('I')){
             switch (instruction.opcode){
@@ -71,16 +87,14 @@ public class Architecture {
                     break;
                 case 5: instruction.valueR1 = instruction.valueR2 & instruction.immediate; break;
                 case 6: instruction.valueR1 = instruction.valueR2 | instruction.immediate; break;
-                case 10:
-                case 11: instruction.r1 = instruction.valueR2 + instruction.immediate - 1024;  break;
+                case 10: break;
+                case 11: instruction.r1 = instruction.valueR2 + instruction.immediate - 1024; break;
                 default: break;
             }
-            System.out.println("Input 1 : Register R" + instruction.r1 + " --- " + "Input 2 : Register R" + instruction.r2 + " --- " + "Input immediate : " + instruction.immediate);
         }
         else {
             pcRegister = pcRegister & 0b11110000000000000000000000000000;
             pcRegister = pcRegister | instruction.address;
-            System.out.println("Input Address " + instruction.address);
         }
         if(instruction.r1==0)
             instruction.valueR1=0;
@@ -216,7 +230,7 @@ public class Architecture {
             // printing :)
             System.out.println("PC  " + (pcRegister));
             System.out.println("Fetching = " + ((fetching==null)?"---":fetching));
-            System.out.println("Decoding = " + ((decoding==null )?"---":decoding));
+            System.out.println("Decoding = " + ((decoding==null)?"---":decoding));
             System.out.println("Executing = " + ((executing==null)?"---":executing));
             System.out.println("Memory = " + ((memorying==null)?"---":memorying));
             System.out.println("Write Back = " + ((writingbacking==null)?"---":writingbacking));
